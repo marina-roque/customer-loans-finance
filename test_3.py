@@ -39,9 +39,9 @@ try:
 
     # Write the data to the CSV file
     with open(csv_file_path, 'w', newline='') as csv_file:
-        csv_writer = csv.writer(csv_file)
-        csv_writer.writerow([desc[0] for desc in cursor.description])  # Write column headers
-        csv_writer.writerows(data)  # Write data rows
+       csv_writer = csv.writer(csv_file)
+       csv_writer.writerow([desc[0] for desc in cursor.description])  # Write column headers
+       csv_writer.writerows(data)  # Write data rows
 
     # Close the cursor and connection when done
     cursor.close()
