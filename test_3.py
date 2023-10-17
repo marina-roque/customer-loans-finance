@@ -1,54 +1,66 @@
+
 #%%
-import psycopg2
-import csv
-import yaml
+import pandas as pd
+from scipy.stats import normaltest
+from statsmodels.graphics.gofplots import qqplot
+from matplotlib import pyplot
 
-# Load the credentials from the YAML file
-with open('credentials.yaml', 'r') as yaml_file:
-    credentials = yaml.safe_load(yaml_file)
+df = pd.read_csv('loan_payments_2.csv')
+df.dtypes
 
-# Extract the credentials
-host = credentials['RDS_HOST']
-dbname = credentials['RDS_DATABASE']
-user = credentials['RDS_USER']
-password = credentials['RDS_PASSWORD']
-port = credentials['RDS_PORT']
+data = df['int_rate']
+stat, p = normaltest(data, nan_policy='omit')
+print('Statistics=%.3f, p=%.3f' % (stat, p))
 
-# Connect to the database
-try:
-    connection = psycopg2.connect(
-        host=host,
-        dbname=dbname,
-        user=user,
-        password=password,
-        port=port
-    )
+df['int_rate'].hist(bins=100)
+qq_plot = qqplot(df['int_rate'] , scale=1 ,line='q')
+pyplot.show()
 
-    # Create a cursor
-    cursor = connection.cursor()
+print(f'The median of HouseAge is {df["int_rate"].median()}')
+print(f'The mean of HouseAge is {df["int_rate"].mean()}')
 
-    # Execute SQL query to extract all da"ta from the 'loan_payments' table
-    query = 'SELECT * FROM loan_payments'
-    cursor.execute(query)
 
-    # Fetch all the data
-    data = cursor.fetchall()
 
-    # Define the path to the CSV file where you want to save the data
-    csv_file_path = 'loans_payments.csv'
+############ guardar codigo para test-2#################
 
-    # Write the data to the CSV file
-    with open(csv_file_path, 'w', newline='') as csv_file:
-       csv_writer = csv.writer(csv_file)
-       csv_writer.writerow([desc[0] for desc in cursor.description])  # Write column headers
-       csv_writer.writerows(data)  # Write data rows
+class Plotter:
+    def __init__(self, data):
+        self.data = data
+    
+    def plot_null_percentage(self):
+        null_percentage_before = (self.data.isnull().sum() / len(self.data)) * 100
+        self.data.dropna()  # Remove rows with missing values ** I deleted the inplace = true from the brackets
+        null_percentage_after = (self.data.isnull().sum() / len(self.data)) * 100
+               
+class DataFrameTransform:
+    def __init__ (self, data):
+        self.data = data
+        
+    def count_nulls(self):
+        return self.data.isnull().sum()
+    
+    # Drop columns where the percentage of missing values exceeds the threshold
+    def drop_columns_with_missing_values(self, threshold=0.7):
+        null_counts = self.count_nulls()
+        columns_to_drop = null_counts[null_counts / len(self.data) > threshold].index
+        self.data.drop(columns=columns_to_drop)#** I deleted the inplace = true from the brackets
+        
+    def impute_missing_values(self, method='median'):
+        if method == 'median':
+            self.data.fillna(self.data.median()) #** I deleted the inplace = true from the brackets
+        elif method == 'mean':
+            self.data.fillna(self.data.mean()) #** I deleted the inplace = true from the brackets
+            
+############## Use of simpleimputer to imput new values into the missing ones##########
 
-    # Close the cursor and connection when done
-    cursor.close()
-    connection.close()
+#print(msno.matrix(df)) ##creates an graphic that shows null values per column
+numeric_columns = df.select_dtypes(include=['int64', 'float64'])
+print(numeric_columns.isnull().sum())
+median_imputer = SimpleImputer(strategy="median")
+numeric_columns_imputed = median_imputer.fit_transform(numeric_columns)
+median_df = pd.DataFrame(data=numeric_columns_imputed, columns=numeric_columns.columns)
+median_df.isnull().sum()
 
-    print(f'Data from the loans_payments table has been saved to {csv_file_path}')
-
-except psycopg2.Error as error:
-    print("Error connecting to the database:", error)
+###################
+# %%
 
