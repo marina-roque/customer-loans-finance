@@ -1,5 +1,4 @@
 # %%
-=======
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy import inspect
@@ -84,7 +83,7 @@ if __name__ == "__main__":
     connector.extract_data_to_csv(table_name, csv_file_path)
     # Load the CSV file into a Pandas DataFrame
     df = connector.load_csv_to_dataframe(csv_file_path)
->>>>>>> e1d8123c83c5ae3c3dd65fb7339aa22a42339b12
+
 
 if table_names:
     print("Table Names:")
