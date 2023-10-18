@@ -1,66 +1,95 @@
-
-#%%
-import pandas as pd
-from scipy.stats import normaltest
-from statsmodels.graphics.gofplots import qqplot
-from matplotlib import pyplot
-
-df = pd.read_csv('loan_payments_2.csv')
-df.dtypes
-
-data = df['int_rate']
-stat, p = normaltest(data, nan_policy='omit')
-print('Statistics=%.3f, p=%.3f' % (stat, p))
-
-df['int_rate'].hist(bins=100)
-qq_plot = qqplot(df['int_rate'] , scale=1 ,line='q')
-pyplot.show()
-
-print(f'The median of HouseAge is {df["int_rate"].median()}')
-print(f'The mean of HouseAge is {df["int_rate"].mean()}')
-
-
-
-############ guardar codigo para test-2#################
-
-class Plotter:
-    def __init__(self, data):
-        self.data = data
-    
-    def plot_null_percentage(self):
-        null_percentage_before = (self.data.isnull().sum() / len(self.data)) * 100
-        self.data.dropna()  # Remove rows with missing values ** I deleted the inplace = true from the brackets
-        null_percentage_after = (self.data.isnull().sum() / len(self.data)) * 100
-               
-class DataFrameTransform:
-    def __init__ (self, data):
-        self.data = data
-        
-    def count_nulls(self):
-        return self.data.isnull().sum()
-    
-    # Drop columns where the percentage of missing values exceeds the threshold
-    def drop_columns_with_missing_values(self, threshold=0.7):
-        null_counts = self.count_nulls()
-        columns_to_drop = null_counts[null_counts / len(self.data) > threshold].index
-        self.data.drop(columns=columns_to_drop)#** I deleted the inplace = true from the brackets
-        
-    def impute_missing_values(self, method='median'):
-        if method == 'median':
-            self.data.fillna(self.data.median()) #** I deleted the inplace = true from the brackets
-        elif method == 'mean':
-            self.data.fillna(self.data.mean()) #** I deleted the inplace = true from the brackets
-            
-############## Use of simpleimputer to imput new values into the missing ones##########
-
-#print(msno.matrix(df)) ##creates an graphic that shows null values per column
-numeric_columns = df.select_dtypes(include=['int64', 'float64'])
-print(numeric_columns.isnull().sum())
-median_imputer = SimpleImputer(strategy="median")
-numeric_columns_imputed = median_imputer.fit_transform(numeric_columns)
-median_df = pd.DataFrame(data=numeric_columns_imputed, columns=numeric_columns.columns)
-median_df.isnull().sum()
-
-###################
 # %%
+=======
+import pandas as pd
+from sqlalchemy import create_engine
+from sqlalchemy import inspect
+from sqlalchemy import text
+import yaml
+import csv
+import numpy as np
 
+
+#Load the database credentials from a YAML file
+class RDSDatabaseConnector:
+    def __init__(self, credentials_file):
+        self.credentials = self.load_credentials(credentials_file)
+        self.db_engine = self.create_db_engine(self.credentials)
+        
+    def load_credentials(self, file_path):
+        try:
+            with open(file_path, 'r') as file:
+                credentials = yaml.safe_load(file)
+            return credentials
+        except Exception as e:
+            print(f"Error loading credentials from {file_path}: {str(e)}")
+            return None
+        
+    def create_db_engine(self, credentials):
+        try:
+            engine = create_engine(f"postgresql://{credentials['RDS_USER']}:{credentials['RDS_PASSWORD']}@{credentials['RDS_HOST']}:{credentials['RDS_PORT']}/{credentials['RDS_DATABASE']}")
+            engine.execution_options(isolation_level='AUTOCOMMIT').connect()
+            return engine
+        except Exception as e:
+            print(f"Error creating database engine: {str(e)}")
+            return None
+        
+    def extract_data_to_csv(self, table_name, csv_file_path):
+        if not self.db_engine:
+            print("Database connection or engine not available. Exiting.")
+            return
+
+        try:
+            conn = self.db_engine.connect()
+            
+            # Execute SQL query
+            query = f'SELECT * FROM {table_name}'
+            data = conn.execute(query)
+            
+            # Fetch data and write to CSV file
+            with open(csv_file_path, 'w', newline='') as csv_file:
+                csv_writer = csv.writer(csv_file)
+                csv_writer.writerow(data.keys())  # Write column headers
+                csv_writer.writerows(data.fetchall())  # Write data rows
+                print(f"Data saved to {csv_file_path}")
+        except Exception as e:
+            print(f"Error extracting data to CSV: {str(e)}")
+        finally:
+            conn.close()
+            
+    def load_csv_to_dataframe(self, csv_file_path):
+        try:
+            df = pd.read_csv(csv_file_path)
+            return df
+        except Exception as e:
+            print(f"Error loading CSV file into DataFrame: {str(e)}")
+            return None
+        
+    def get_table_names(self):
+        if not self.db_engine:
+            print("Database engine not available. Exiting.")
+            return []
+
+        inspector = inspect(self.db_engine)
+        table_names = inspector.get_table_names()
+        return table_names
+    
+if __name__ == "__main__":
+    # Initialize the RDSDatabaseConnector and specify the table and CSV file path
+    connector = RDSDatabaseConnector('credentials.yaml')
+    table_name = 'loan_payments'
+    table_names = connector.get_table_names()
+    csv_file_path = 'loan_payments.csv'
+    
+    # Extract data and save it to a CSV file
+    connector.extract_data_to_csv(table_name, csv_file_path)
+    # Load the CSV file into a Pandas DataFrame
+    df = connector.load_csv_to_dataframe(csv_file_path)
+>>>>>>> e1d8123c83c5ae3c3dd65fb7339aa22a42339b12
+
+if table_names:
+    print("Table Names:")
+    for table_name in table_names:
+        print(table_name)
+else:
+    print("No tables found or an error occurred.")
+    
