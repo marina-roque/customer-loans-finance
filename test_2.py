@@ -1,11 +1,14 @@
 #%%
 from statsmodels.graphics.gofplots import qqplot
 from sklearn.impute import SimpleImputer
+from plotly.subplots import make_subplots
 from sqlalchemy import create_engine
 from scipy.stats import normaltest
 from sqlalchemy import inspect
 from sqlalchemy import text
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
+import plotly.express as px
 import missingno as msno
 import seaborn as sns
 import pandas as pd
@@ -204,7 +207,24 @@ class Plotter:
             sns.histplot(self.data, x=column, kde=True)
             plt.title(f'Distribution of {column} (Skewness: {skewness:.2f})')
             plt.show()
-             
+    
+    ''' def plot_scatter(self):  ###### Not working #########
+        num_cols = len(self.data.columns)
+        rows = cols = num_cols
+
+        fig = make_subplots(rows=rows, cols=cols, subplot_titles=self.data.columns, shared_xaxes=True, shared_yaxes=True)
+        for i, column in enumerate(self.data.columns):
+            for j, other_column in enumerate(self.data.columns):
+                fig.add_trace(
+                    go.Scatter(x=self.data[other_column], y=self.data[column], mode="markers", showlegend=False),
+                    row=i + 1, col=j + 1
+                )
+
+        fig.update_layout(title_text="Scatter Plots of Columns")
+        fig.update_xaxes(title_text="X-Axis")
+        fig.update_yaxes(title_text="Y-Axis")
+        fig.show()'''
+    
 class DataFrameTransform:
     def __init__(self, data):
         self.data = data
@@ -245,14 +265,17 @@ class DataFrameTransform:
             
         return skewed_columns
     
-    def transform_skewed_columns(self, transformation=['log', 'sqrt']):
+    def transform_skewed_columns(self, transformations=['log', 'sqrt']):
         skewed_columns = self.identify_skewed_columns()
         
         for column, skewness in skewed_columns:
-            if transformation == 'log':
-                self.data[column] = np.log1p(self.data[column])
-            elif transformation == 'sqrt':
-                self.data[column] = np.sqrt(self.data[column])
+            for transformation in transformations:
+                if transformation == 'log':
+                    self.data[column] = np.log1p(self.data[column])
+                elif transformation == 'sqrt':
+                    self.data[column] = np.sqrt(self.data[column])
+                    
+    
         
 if __name__ == "__main__":
     # Initialize the RDSDatabaseConnector and specify the table and CSV file path
@@ -264,7 +287,11 @@ if __name__ == "__main__":
     connector.extract_data_to_csv(table_name, csv_file_path)
     # Load the CSV file into a Pandas DataFrame
     df = connector.load_csv_to_dataframe(csv_file_path)
+    # Create a backup of the original DataFrame
     original_df = df.copy()
+    # Save the original DataFrame to a backup file (e.g., CSV)
+    #backup_file_path = 'original_data_backup.csv'
+    #original_df.to_csv(backup_file_path, index=False)
     
     #For DataTransform
     info = DataFrameInfo(df)
@@ -275,14 +302,14 @@ if __name__ == "__main__":
     transformer.transform_term_column('term')
     df.rename(columns={'term': 'term_in_months'}, inplace=True)
     #transformer.transform_employment_length('employment_length')
-    transformer.convert_to_categorical()         
-    transformer.data
+    transformer.convert_to_categorical()
     
     #for DataFrameTransform
     frame_transformer = DataFrameTransform(df)
     # Automatically drop rows with less than 1% null values and impute columns with 1% to 10% null values
-    ####frame_transformer.drop_rows_and_impute() ##not working still
-    frame_transformer.transform_skewed_columns()
+   # Automatically drop rows with less than 1% null values and impute columns with 1% to 10% null values
+    ##frame_transformer.drop_rows_and_impute() ####still not working
+    frame_transformer.transform_skewed_columns(transformations=['log', 'sqrt'])  # Apply skewness transformation
 
     # Drop columns with more than 40% missing values
     frame_transformer.drop_columns_with_missing_values(threshold=0.4)
@@ -290,4 +317,15 @@ if __name__ == "__main__":
     
     #Plotter
     plotter = Plotter(df)
-    plotter.plot_skewed_columns()
+    #plotter.plot_skewed_columns()
+    #msno.matrix(df)
+    #plt.show()
+    plotter.plot_scatter()
+    
+#################
+'''
+- frame_transformer drop rows not working at the moment
+(KeyError: "['id', 'member_id', 'loan_amount', 'funded_amount_inv', 'term_in_months', 'instalment', 'grade', 'sub_grade', 'home_ownership', 'annual_inc', 'verification_status', 'issue_date', 'loan_status', 'payment_plan', 'purpose', 'dti', 'delinq_2yrs', 'earliest_credit_line', 'inq_last_6mths', 'open_accounts', 'total_accounts', 'out_prncp', 'out_prncp_inv', 'total_payment', 'total_payment_inv', 'total_rec_prncp', 'total_rec_int', 'total_rec_late_fee', 'recoveries', 'collection_recovery_fee', 'last_payment_date', 'last_payment_amount', 'last_credit_pull_date', 'collections_12_mths_ex_med', 'policy_code', 'application_type'] not found in axis")
+
+'''
+
