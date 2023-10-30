@@ -1,3 +1,4 @@
+#%%
 from statsmodels.graphics.gofplots import qqplot
 from sklearn.impute import SimpleImputer
 from sqlalchemy import create_engine
@@ -146,47 +147,90 @@ class DataFrameInfo:
         return null_info
 
 print("Column Types:")
-#print(info.column_type()) 
+print(info.column_type()) 
 
 print("\nStatistics:")
-#print(info.extract_statistics())
+print(info.extract_statistics())
 
 print("\nDistinct Values in Categorical Columns:")
-#print(info.count_distinct_values())
+print(info.count_distinct_values())
 
 print("\nShape of the DataFrame:")
-#print(info.print_shape())
+print(info.print_shape())
 
 print("\nNULL Value Counts:")
-#print(info.count_null_values())
+print(info.count_null_values())
     
 class Plotter:
     def __init__(self, data):
         self.data = data
         self.DataFrameTransform_instance = DataFrameTransform(data)
     
-    #def plot_null_percentage(self):
-        #null_percentage_before = (self.data.isnull().sum() / len(self.data)) * 100
-        #self.data.dropna()  # Remove rows with missing values
-        #null_percentage_after = (self.data.isnull().sum() / len(self.data)) * 100
+    def plot_null_percentage(self):
+        null_percentage_before = (self.data.isnull().sum() / len(self.data)) * 100
+        self.data.dropna()  # Remove rows with missing values
+        null_percentage_after = (self.data.isnull().sum() / len(self.data)) * 100
     
     def plot_correlation_heatmap(self):
         # Compute the correlation matrix
-        corr = self.data.corr()
-    
-        # Generate a mask for the upper triangle
-        mask = np.zeros_like(corr, dtype=np.bool_)
-        mask[np.triu_indices_from(mask)] = True
-    
+        corr_matrix = self.data.select_dtypes(include='number').corr()
+
+        # Create a mask for the upper triangle
+        mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+
         # Set up the heatmap style
         cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+        # Draw the heatmap
+        plt.figure(figsize=(30, 25))
+        sns.heatmap(corr_matrix, mask=mask, annot=True, cmap=cmap, fmt=".2f")
+        plt.title("Correlation Matrix Heatmap")
+        plt.show()
     
+    def remove_highly_correlated_columns(self, correlation_threshold=0.9):
+        # Compute the correlation matrix
+        corr_matrix = self.data.select_dtypes(include='number').corr()
+
+        # Identify highly correlated column pairs
+        highly_correlated_pairs = []
+        for i in range(len(corr_matrix.columns)):
+            for j in range(i):
+                if abs(corr_matrix.iloc[i, j]) > correlation_threshold:
+                    col1 = corr_matrix.columns[i]
+                    col2 = corr_matrix.columns[j]
+                    highly_correlated_pairs.append((col1, col2, corr_matrix.iloc[i, j]))
+
+        # Decide which columns to remove (keep one column from each pair)
+        columns_to_remove = set()
+        for col1, col2, _ in highly_correlated_pairs:
+            if col1 not in cat_cols and col1 not in date_cols:
+                columns_to_remove.add(col1)
+
+        # Remove the highly correlated columns from the dataset
+        df_cleaned = self.data.drop(columns=columns_to_remove)
+        print(f"Removed highly correlated columns: {columns_to_remove}")
+
+        return df_cleaned
+    
+    def display_updated_heatmap(self, df_cleaned, removed_columns):
+        # Compute the correlation matrix for the cleaned DataFrame
+        corr_cleaned = df_cleaned.corr()
+        
+        # Generate a mask for the upper triangle
+        mask = np.zeros_like(corr_cleaned, dtype=np.bool_)
+        mask[np.triu_indices_from(mask)] = True
+        
+        # Set up the heatmap style
+        cmap = sns.diverging_palette(220, 10, as_cmap=True)
+        
         # Draw the heatmap
         plt.figure(figsize=(35, 35))  # Adjust the figure size as needed
-        sns.heatmap(corr, mask=mask, square=True, linewidths=.5, annot=True, cmap=cmap)
+        sns.heatmap(corr_cleaned, mask=mask, square=True, linewidths=.5, annot=True, cmap=cmap)
         plt.yticks(rotation=0)
-        plt.title('Correlation Matrix of all Numerical Variables', fontsize=36)
+        plt.title('Updated Correlation Matrix of all Numerical Variables', fontsize=36)
         plt.show()
+        
+        print("Removed columns:", removed_columns)
         
       
     def plot_skewed_columns(self, threshold=0.5):
@@ -203,6 +247,19 @@ class Plotter:
             sns.histplot(self.data, x=column, kde=True)
             plt.title(f'Distribution of {column} (Skewness: {skewness:.2f})')
             plt.show()
+            
+    def create_boxplot(self, data, y_cols, title="Box Plots"):
+        data_traces = []
+        for y_col in y_cols:
+            boxplot = go.Box(y=data[y_col], name=y_col, boxpoints="outliers")
+            data_traces.append(boxplot)
+
+        layout = go.Layout(
+            title=title,
+            boxmode="group")
+
+        fig = go.Figure(data=data_traces, layout=layout)
+        fig.show()
              
 class DataFrameTransform:
     def __init__(self, data):
@@ -252,7 +309,27 @@ class DataFrameTransform:
                 self.data[column] = np.log1p(self.data[column])
             elif transformation == 'sqrt':
                 self.data[column] = np.sqrt(self.data[column])
-        
+    
+    def handle_outliers_iqr(data, columns):
+        # Create a copy of the DataFrame to avoid modifying the original data
+        data_copy = data
+
+        for column in columns:
+            Q1 = data_copy[column].quantile(0.25)
+            Q3 = data_copy[column].quantile(0.75)
+            IQR = Q3 - Q1
+
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+
+            # Replace values below the lower bound with the lower bound
+            data_copy[column] = data_copy[column].apply(lambda x: lower_bound if x < lower_bound else x)
+            # Replace values above the upper bound with the upper bound
+            data_copy[column] = data_copy[column].apply(lambda x: upper_bound if x > upper_bound else x)
+
+        return data_copy
+    
+       
 if __name__ == "__main__":
     # Initialize the RDSDatabaseConnector and specify the table and CSV file path
     connector = RDSDatabaseConnector('credentials.yaml')
@@ -273,7 +350,6 @@ if __name__ == "__main__":
     transformer.transform_date_columns()
     transformer.transform_term_column('term')
     df.rename(columns={'term': 'term_in_months'}, inplace=True)
-    #transformer.transform_employment_length('employment_length')
     transformer.convert_to_categorical()         
     transformer.data
     
@@ -282,7 +358,6 @@ if __name__ == "__main__":
     # Automatically drop rows with less than 1% null values and impute columns with 1% to 10% null values
     ####frame_transformer.drop_rows_and_impute() ##not working still
     frame_transformer.transform_skewed_columns()
-
     # Drop columns with more than 40% missing values
     frame_transformer.drop_columns_with_missing_values(threshold=0.4)
     
@@ -290,6 +365,28 @@ if __name__ == "__main__":
     #Plotter
     plotter = Plotter(df)
     plotter.plot_skewed_columns()
+    plotter.plot_correlation_heatmap()
+      # Remove highly correlated columns and display the updated heatmap
+    removed_columns = plotter.remove_highly_correlated_columns()
+    plotter.display_updated_heatmap(df, removed_columns)
+    
+    # Additional visualizations
+    msno.matrix(df)
+    
+    columns_of_interest_1 = ['instalment', 'dti', 'delinq_2yrs', 'open_accounts']
+    plotter.create_boxplot(df, columns_of_interest_1, title="Box Plots with Outliers 1")
+    #df_outliers_handled = frame_transformer.handle_outliers_iqr(columns_of_interest_1)
+    #plotter.create_boxplot(df_outliers_handled, columns_of_interest_1, title="Box Plots with Outliers Handled 1(IQR)")
+    
+    columns_of_interest_2 = ['loan_amount', 'out_prncp', 'total_payment']
+    plotter.create_boxplot(df, columns_of_interest_2, title="Box Plots with Outliers 2")
+    #df_outliers_handled = frame_transformer.handle_outliers_iqr(columns_of_interest_2)
+    #plotter.create_boxplot(df_outliers_handled, columns_of_interest_2, title="Box Plots with Outliers Handled 2 (IQR)")
+
+    columns_of_interest_3 = ['annual_inc']
+    plotter.create_boxplot(df, columns_of_interest_3, title="Box Plots with Outliers 3")
+    #df_outliers_handled = frame_transformer.handle_outliers_iqr(columns_of_interest_3)
+    #plotter.create_boxplot(df_outliers_handled, columns_of_interest_3, title="Box Plots with Outliers Handled 3(IQR)")
 
 
 #############needs commiting still###############
