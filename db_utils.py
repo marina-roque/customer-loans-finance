@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from scipy.stats import normaltest
 from sqlalchemy import inspect
 from sqlalchemy import text
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import missingno as msno
 import seaborn as sns
@@ -80,15 +81,7 @@ class RDSDatabaseConnector:
     
     
     
-class DataTransform:
-###Things to change :   datestimes columns --use .to_datetime()-- (issue_date, earliest_credit_line, last_payment_date, next_payment_date, last_credit_pull_date)
-#                       term column --use .strip to remove 'months'; fill the Nan with '0' values, rename column name--
-#                       employement_length  -- use strip to remove 'years'; how to deal with odd values (10+)??--
-#                       transform the column into categorical (grade, sub_grade, home_ownership, verification_status, loan_status, payment_plan, purpose, application_type)
-## split date columns into months and years
-#("issue_date", "earliest_credit_line", "last_payment_date", "next_payment_date", "last_credit_pull_date")
-#("grade", "sub_grade", "home_ownership", "verification_status", "loan_status", "payment_plan", "purpose", "application_type")   
-    
+class DataTransform: 
     def __init__(self, data, date_cols, cat_cols):
         self.data = data
         self.date_columns = date_cols
@@ -146,7 +139,7 @@ class DataFrameInfo:
             'Null Percentage': null_percentages})
         return null_info
 
-print("Column Types:")
+'''print("Column Types:")
 print(info.column_type()) 
 
 print("\nStatistics:")
@@ -159,7 +152,7 @@ print("\nShape of the DataFrame:")
 print(info.print_shape())
 
 print("\nNULL Value Counts:")
-print(info.count_null_values())
+print(info.count_null_values())'''
     
 class Plotter:
     def __init__(self, data):
@@ -364,7 +357,7 @@ if __name__ == "__main__":
     
     #Plotter
     plotter = Plotter(df)
-    plotter.plot_skewed_columns()
+    '''plotter.plot_skewed_columns()
     plotter.plot_correlation_heatmap()
       # Remove highly correlated columns and display the updated heatmap
     removed_columns = plotter.remove_highly_correlated_columns()
@@ -387,6 +380,6 @@ if __name__ == "__main__":
     plotter.create_boxplot(df, columns_of_interest_3, title="Box Plots with Outliers 3")
     #df_outliers_handled = frame_transformer.handle_outliers_iqr(columns_of_interest_3)
     #plotter.create_boxplot(df_outliers_handled, columns_of_interest_3, title="Box Plots with Outliers Handled 3(IQR)")
-
+'''
 
 #############needs commiting still###############

@@ -545,7 +545,7 @@ if __name__ == "__main__":
     projected_amount = totals['projected_amount']
     
     percentage_rec = total_payment_sum / (total_amount / 100)
-    print(f"Current General Recovery Percentage: {percentage_rec:.2f}%")
+    print(f"Current General Recovery Percentage: {percentage_rec:.2f}%") 
     
     recovery_inv = total_payment_sum / (total_inv_amount / 100)
     print(f"Current Investor Recovery Percentage: {recovery_inv:.2f}%")
