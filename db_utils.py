@@ -501,7 +501,7 @@ if __name__ == "__main__":
     connector = RDSDatabaseConnector('credentials.yaml')
     table_name = 'loan_payments'
     table_names = connector.get_table_names()
-    csv_file_path = 'loan_payments.csv'
+    csv_file_path = 'db_utils.csv'
     # Extract data and save it to a CSV file
     connector.extract_data_to_csv(table_name, csv_file_path)
     # Load the CSV file into a Pandas DataFrame
