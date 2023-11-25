@@ -165,7 +165,6 @@ class DataFrameTransform:
     def drop_rows_and_impute(self):
         null_percentages = self.calculate_null_percentage()
 
-
         numeric_columns_to_impute = null_percentages[(null_percentages >= 1) & (null_percentages <= 10)].index
         for column in numeric_columns_to_impute:
             if self.data[column].dtype in ['int64', 'float64']:
@@ -573,7 +572,7 @@ if __name__ == "__main__":
     
     plotter = Plotter(df)
     indicator_columns = ['grade', 'purpose', 'dti']
-    
+    plotter.plot_correlation_heatmap(df)
 '''
     # Remove highly correlated columns and display the updated heatmap
     removed_columns = plotter.remove_highly_correlated_columns()
